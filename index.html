@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedule Generator</title>
+  <style>
+    /* 1) Normalize */
+    html, body { margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; }
+    img, svg { display: block; max-width: 100%; }
+    button, input, select { font: inherit; }
+
+    /* 2) Namespace to avoid host CSS collisions */
+    .sg { 
+      --bg:#f0f0f0;
+      --fg:#000;
+      --card:#fff;
+      --border:3px solid #000;
+      --radius:20px;
+      --pad:20px;
+      line-height: 1.35;
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Comic Sans MS", "Comic Sans", ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .sg .container {
+      background: var(--card);
+      border: var(--border);
+      border-radius: var(--radius);
+      padding: var(--pad);
+      box-shadow: 10px 10px 0 var(--fg);
+      width: min(92vw, 480px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sg header h1 {
+      font-size: 2rem;
+      text-align: center;
+      margin: 0;
+    }
+
+    .sg .activities-box,
+    .sg .list-container {
+      border: 2px solid var(--fg);
+      border-radius: 15px;
+      padding: 15px;
+    }
+
+    .sg .activities-box h2,
+    .sg .list-container h2 {
+      font-size: 1.1rem;
+      margin: 0 0 10px 0;
+    }
+
+    .sg .input-group, 
+    .sg .duration-group,
+    .sg .start-time-group,
+    .sg .start-time-inputs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .sg .start-time-group { flex-direction: column; gap: 6px; margin-top: 8px; }
+
+    .sg input[type="text"],
+    .sg input[type="number"],
+    .sg select {
+      border: 2px solid var(--fg);
+      border-radius: 8px;
+      padding: 8px;
+      width: 100%;
+    }
+
+    .sg #start-time-hours, 
+    .sg #start-time-minutes { width: 32%; }
+    .sg #start-time-ampm { width: 32%; flex-grow: 1; }
+
+    .sg #add-btn, 
+    .sg .create-btn, 
+    .sg #reset-btn {
+      background: var(--card);
+      border: 2px solid var(--fg);
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+      width: 100%;
+      transition: transform 80ms ease, box-shadow 80ms ease;
+    }
+
+    .sg #add-btn:hover, 
+    .sg .create-btn:hover, 
+    .sg #reset-btn:hover {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 var(--fg);
+    }
+
+    .sg .list-container ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .sg .list-container li {
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="sg">
+    <div class="container">
+      <header><h1>Schedule Generator</h1></header>
+      <main>
+        <div class="activities-box">
+          <h2>Add Activities:</h2>
+          <div class="input-group">
+            <input type="text" id="activity-name" placeholder="Activity (e.g., Homework)">
+            <div class="duration-group">
+              <input type="number" id="duration-hours" placeholder="Hours" min="0">
+              <input type="number" id="duration-minutes" placeholder="Minutes" min="0">
+            </div>
+          </div>
+
+          <div class="start-time-group">
+            <label for="start-time-hours">Start Time:</label>
+            <div class="start-time-inputs">
+              <input type="number" id="start-time-hours" min="1" max="12" placeholder="Hour">
+              <input type="number" id="start-time-minutes" min="0" max="59" placeholder="Min">
+              <select id="start-time-ampm">
+                <option value="am">AM</option>
+                <option value="pm">PM</option>
+              </select>
+            </div>
+          </div>
+
+          <button id="add-btn">Add</button>
+          <button class="create-btn" id="create-schedule-btn">Create</button>
+          <button id="reset-btn">Reset</button>
+        </div>
+
+        <div class="list-container">
+          <h2>Schedule:</h2>
+          <ul id="schedule-list"></ul>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const activityNameInput = document.getElementById('activity-name');
+      const durationHoursInput = document.getElementById('duration-hours');
+      const durationMinutesInput = document.getElementById('duration-minutes');
+      const addBtn = document.getElementById('add-btn');
+      const createBtn = document.getElementById('create-schedule-btn');
+      const resetBtn = document.getElementById('reset-btn');
+
+      const startTimeHoursInput = document.getElementById('start-time-hours');
+      const startTimeMinutesInput = document.getElementById('start-time-minutes');
+      const startTimeAMPMSelect = document.getElementById('start-time-ampm');
+
+      const scheduleList = document.getElementById('schedule-list');
+
+      let activities = [];
+
+      addBtn.addEventListener('click', () => {
+        const name = activityNameInput.value.trim();
+        const hours = parseInt(durationHoursInput.value, 10) || 0;
+        const minutes = parseInt(durationMinutesInput.value, 10) || 0;
+        const totalDuration = (hours * 60) + minutes;
+
+        if (name && totalDuration > 0) {
+          activities.push({ name, duration: totalDuration });
+          renderAddedActivity(name, totalDuration);
+          clearInputs();
+        } else {
+          alert('Please enter a valid activity and duration.');
+        }
+      });
+
+      createBtn.addEventListener('click', () => {
+        if (activities.length > 0) {
+          generateSchedule();
+        } else {
+          alert('Please add at least one activity before creating the schedule.');
+        }
+      });
+
+      resetBtn.addEventListener('click', () => { location.reload(); });
+
+      function renderAddedActivity(name, duration) {
+        const li = document.createElement('li');
+        const h = Math.floor(duration / 60);
+        const m = duration % 60;
+        const durationString = `${h > 0 ? h + 'h' : ''} ${m > 0 ? m + 'm' : ''}`.trim();
+        li.textContent = `${name}: ${durationString}`;
+        scheduleList.appendChild(li);
+      }
+
+      function clearInputs() {
+        activityNameInput.value = '';
+        durationHoursInput.value = '';
+        durationMinutesInput.value = '';
+      }
+
+      function generateSchedule() {
+        scheduleList.innerHTML = '';
+        let currentTime;
+
+        const startHours = parseInt(startTimeHoursInput.value, 10);
+        const startMinutes = parseInt(startTimeMinutesInput.value, 10);
+        const ampm = startTimeAMPMSelect.value;
+
+        if (startHours >= 1 && startHours <= 12 && startMinutes >= 0 && startMinutes <= 59) {
+          let hours24 = startHours;
+          if (ampm === 'pm' && hours24 !== 12) hours24 += 12;
+          if (ampm === 'am' && hours24 === 12) hours24 = 0;
+
+          const now = new Date();
+          currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours24, startMinutes, 0, 0);
+        } else {
+          currentTime = new Date();
+        }
+
+        activities.forEach((activity, index) => {
+          const li = document.createElement('li');
+          const endTime = new Date(currentTime.getTime() + activity.duration * 60000);
+          const startTimeString = formatTime(currentTime);
+          const endTimeString = formatTime(endTime);
+          li.textContent = `${index + 1}. ${activity.name} from ${startTimeString} to ${endTimeString}`;
+          scheduleList.appendChild(li);
+          currentTime = endTime;
+        });
+      }
+
+      function formatTime(date) {
+        let h = date.getHours();
+        const m = date.getMinutes().toString().padStart(2, '0');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12; h = h ? h : 12;
+        return `${h}:${m} ${ampm}`;
+      }
+    });
+  </script>
+</body>
+</html>
